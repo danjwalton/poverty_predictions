@@ -84,38 +84,38 @@ countries <- pov.rec[, c("CountryCode", "CoverageType", "RequestYear", "PPP")]
 countries <- rbind(countries[CoverageType %in% c("N", "A")], countries[, .SD[!any(CoverageType %in% c("N", "A"))],by=CountryCode])
 
 #GDP per capita growth
-WEOraw <- fread("http://www.imf.org/external/pubs/ft/weo/2020/01/weodata/WEOApr2020all.xls", na.strings="n/a")
-WEOupdate1 <- read_excel("project_data/WEOJun2020update.xlsx", range = "A7:E38", sheet=1, trim_ws = T)
-WEOupdate2 <- read_excel("project_data/WEOJun2020update.xlsx", range = "A8:E38", sheet=2, trim_ws = T)
-WEO <- WEOraw[`WEO Subject Code` %in% c("NGDPRPPPPCPCH", "NGDPRPPPPC")]
+tmp <- tempfile(fileext = ".xlsx")
+download.file("https://www.imf.org/external/pubs/ft/weo/data/WEOhistorical.xlsx", tmp, mode = "wb")
+WEOraw <- as.data.table(read_excel(tmp, sheet = "ngdp_rpch"))
+
+WEO <- WEOraw
+WEO <- WEO[, .(latest = apply(.SD, 1, function(x) unlist(x)[x != "."][ifelse(length(unlist(x)[x != "."]) == 0, 1, length(unlist(x)[x != "."]))][[1]])), .SDcols = names(WEO)[-c(1:4)], by = .(country, ISOAlpha_3Code, year)]
+
+WEO <- dcast(WEO, country + ISOAlpha_3Code ~ year, value.var = "latest")
 
 year.cols <- as.character(seq(min(countries$RequestYear), max(as.numeric(names(WEO)), na.rm=T)))
-WEO[, (year.cols) := lapply(.SD, function(x) gsub(",", "", x)), .SDcols=(year.cols)]
+WEO <- WEO[, lapply(.SD, as.numeric), .SDcols=(year.cols), by=.(ISOAlpha_3Code)]
 
-WEO <- WEO[, lapply(.SD, as.numeric), .SDcols=(year.cols), by=.(ISO, `WEO Subject Code`)]
-WEO[`WEO Subject Code` == "NGDPRPPPPC", (year.cols) := cbind(0,as.data.table(t(apply(.SD, 1, function(x) 100*(diff(x)/shift(x,0)))))), .SDcols=(year.cols), by=ISO]
+WEO <- WEO[, lapply(.SD, function(x) x[!is.na(x)][1]), .SDcols=(year.cols), by=ISOAlpha_3Code]
 
 WEO[WEO=="--"] <- 0
-WEO$`WEO Subject Code` <- NULL
 
-WEO[ISO == "UVK"]$ISO <- "XKX"
+WEO[ISOAlpha_3Code == "KOS"]$ISOAlpha_3Code <- "XKX"
 
-WEO <- merge(WEO, countries, by.x="ISO", by.y="CountryCode", all.y=T)
-WEO <- merge(WEO, wb_un.regions, by.x="ISO", by.y="ISO3")
+WEO <- merge(WEO, countries, by.x="ISOAlpha_3Code", by.y="CountryCode", all.y=T)
+WEO <- merge(WEO, wb_un.regions, by.x="ISOAlpha_3Code", by.y="ISO3")
 
 #Calculate new effective PPPs for each year of growth data
 WEO[, (year.cols) := lapply(1:ncol(.SD), function(i) ifelse(names(.SD)[i] <= RequestYear, 0, .SD[[i]])), .SDcols=(year.cols)]
 # WEO <- merge(WEO, fce.gdp.est, by.x="WB_Region", by.y="iso3c", all.x=T)
 
-WEO[ISO=="CHN", (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.72)/100))))), .SDcols=(year.cols), by=ISO]
-WEO[ISO=="IND", (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.51)/100))))), .SDcols=(year.cols), by=ISO]
-WEO[!(ISO %in% c("CHN", "IND")), (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.87)/100))))), .SDcols=(year.cols), by=ISO]
+WEO[ISOAlpha_3Code=="CHN", (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.72)/100))))), .SDcols=(year.cols), by=ISOAlpha_3Code]
+WEO[ISOAlpha_3Code=="IND", (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.51)/100))))), .SDcols=(year.cols), by=ISOAlpha_3Code]
+WEO[!(ISOAlpha_3Code %in% c("CHN", "IND")), (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.87)/100))))), .SDcols=(year.cols), by=ISOAlpha_3Code]
 
-# WEO[, (year.cols) := as.data.table(t(apply(.SD, 1, function(x, beta0, beta1) (1+(x*beta0+shift(x)*beta1)/100), beta0=`0`, beta1=`1`))), .SDcols=(year.cols), by=ISO]
+# WEO[, (year.cols) := as.data.table(t(apply(.SD, 1, function(x, beta0, beta1) (1+(x*beta0+shift(x)*beta1)/100), beta0=`0`, beta1=`1`))), .SDcols=(year.cols), by=ISOAlpha_3Code]
 # WEO[, (year.cols) := lapply(1:ncol(.SD), function(i) ifelse(names(.SD)[i] <= RequestYear, 1, .SD[[i]])), .SDcols=(year.cols)]
-# WEO[, (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(x)))), .SDcols=(year.cols), by=ISO]
-
-
+# WEO[, (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(x)))), .SDcols=(year.cols), by=ISOAlpha_3Code]
 
 WEO[, (year.cols) := PPP/.SD, .SDcols=(year.cols)]
 
@@ -134,7 +134,7 @@ for(i in 1:nrow(year.lines)){
   print(paste("Year:",proj.year,"; Poverty Line:",round(pl,2)))
   year.data <- list()
   for(j in 1:length(WEO.split)){
-    year.data[[j]] <- povcal.ind.out(RefYears = T, countries = WEO.split[[j]]$ISO, coverage=WEO.split[[j]]$CoverageType, years = unique(WEO.split[[j]]$RequestYear), PLs = pl, PPPs = unlist(WEO.split[[j]][,proj.year, with=F]))
+    year.data[[j]] <- povcal.ind.out(RefYears = T, countries = WEO.split[[j]]$ISOAlpha_3Code, coverage=WEO.split[[j]]$CoverageType, years = unique(WEO.split[[j]]$RequestYear), PLs = pl, PPPs = unlist(WEO.split[[j]][,proj.year, with=F]))
   }
   proj <- rbindlist(year.data)
   proj$ProjYear <- proj.year

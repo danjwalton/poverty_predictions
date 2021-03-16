@@ -61,7 +61,7 @@ Betasolve <- function(a,b,c,PL,mu,init){
 afg <- data.table(A= c(0.935463769, 0.5760727),
                   B= c(-1.476794803, 0.856948964),
                   C= c(0.083512829, 0.49178234),
-                  ISO= "AFG",
+                  ISOAlpha_3Code= "AFG",
                   CountryName = "Afghanistan",
                   year= 2016.5,
                   mean= 21397.13631/365.2424,
@@ -72,7 +72,7 @@ afg <- data.table(A= c(0.935463769, 0.5760727),
 eri <- data.table(A= c(1.374421323, 1.261376489),
                   B= c(-1.165524803, 1.152561641),
                   C= c(-0.156452176, 0.800896719),
-                  ISO= "ERI",
+                  ISOAlpha_3Code= "ERI",
                   CountryName = "Eritrea",
                   year= 2011,
                   mean= 6758.835465/365.2424,
@@ -83,7 +83,7 @@ eri <- data.table(A= c(1.374421323, 1.261376489),
 lby <- data.table(A= c(1.002559972, 0.613658334),
                   B= c(-1.341360921, 0.934277217),
                   C= c(0.241518659, 0.607012527),
-                  ISO= "LBY",
+                  ISOAlpha_3Code= "LBY",
                   CountryName = "Libya",
                   year= 2008,
                   mean= 1918.570249/365.2424,
@@ -94,7 +94,7 @@ lby <- data.table(A= c(1.002559972, 0.613658334),
 gnq <- data.table(A= c(0.770509436, 0.799965732),
                   B= c(-0.622602953, 0.91474227),
                   C= c(0.046025736, 0.324983405),
-                  ISO= "GNQ",
+                  ISOAlpha_3Code= "GNQ",
                   CountryName = "Equatorial Guinea",
                   year= 2006,
                   mean= 485978.87/365.2424,
@@ -105,7 +105,7 @@ gnq <- data.table(A= c(0.770509436, 0.799965732),
 som <- data.table(A= c(0.88737242, 0.666110634),
                   B= c(-1.254176897, 0.95205282),
                   C= c(0.196100839, 0.562072863),
-                  ISO= "SOM",
+                  ISOAlpha_3Code= "SOM",
                   CountryName = "Somalia",
                   year= 2017,
                   mean= 421.8353938/365.2424,
@@ -116,7 +116,7 @@ som <- data.table(A= c(0.88737242, 0.666110634),
 nru <- data.table(A= c(0.984898208, 0.88028882),
                   B= c(-1.794465503, 0.998651171),
                   C= c(-0.439162335, 0.446140553),
-                  ISO= "NRU",
+                  ISOAlpha_3Code= "NRU",
                   CountryName = "Nauru",
                   year= 2012.5,
                   mean= 125.38/7,
@@ -127,7 +127,7 @@ nru <- data.table(A= c(0.984898208, 0.88028882),
 khm <- data.table(A= c(0.683555591,0.580351138),
                   B= c(-1.00090442, 0.952211708),
                   C= c(0.439753837, 0.507103243),
-                  ISO= "KHM",
+                  ISOAlpha_3Code= "KHM",
                   CountryName = "Cambodia",
                   year= 2011,
                   mean= ,
@@ -138,22 +138,26 @@ khm <- data.table(A= c(0.683555591,0.580351138),
 countries <- rbind(afg, eri, lby, gnq, som, nru)
 
 #GDP per capita growth
-WEOraw <- fread("http://www.imf.org/external/pubs/ft/weo/2020/01/weodata/WEOApr2020all.xls", na.strings="n/a")
-WEO <- WEOraw[`WEO Subject Code` %in% c("NGDPRPPPPCPCH", "NGDPRPPPPC", "NGDP_RPCH")]
+tmp <- tempfile(fileext = ".xlsx")
+download.file("https://www.imf.org/external/pubs/ft/weo/data/WEOhistorical.xlsx", tmp, mode = "wb")
+WEOraw <- as.data.table(read_excel(tmp, sheet = "ngdp_rpch"))
+
+WEO <- WEOraw
+WEO <- WEO[, .(latest = apply(.SD, 1, function(x) unlist(x)[x != "."][ifelse(length(unlist(x)[x != "."]) == 0, 1, length(unlist(x)[x != "."]))][[1]])), .SDcols = names(WEO)[-c(1:4)], by = .(country, ISOAlpha_3Code, year)]
+
+WEO <- dcast(WEO, country + ISOAlpha_3Code ~ year, value.var = "latest")
+
 year.cols <- as.character(seq(min(countries$year), max(as.numeric(names(WEO)), na.rm=T)))
-WEO[, (year.cols) := lapply(.SD, function(x) gsub(",", "", x)), .SDcols=(year.cols)]
 
-WEO <- WEO[, lapply(.SD, as.numeric), .SDcols=(year.cols), by=.(ISO, `WEO Subject Code`)]
-WEO[`WEO Subject Code` == "NGDPRPPPPC", (year.cols) := cbind(0,as.data.table(t(apply(.SD, 1, function(x) 100*(diff(x)/shift(x,0)))))), .SDcols=(year.cols), by=ISO]
+WEO <- WEO[, lapply(.SD, as.numeric), .SDcols=(year.cols), by=.(ISOAlpha_3Code)]
 
-WEO <- WEO[, lapply(.SD, function(x) x[!is.na(x)][1]), .SDcols=(year.cols), by=ISO]
+WEO <- WEO[, lapply(.SD, function(x) x[!is.na(x)][1]), .SDcols=(year.cols), by=ISOAlpha_3Code]
 
 WEO[WEO=="--"] <- 0
-WEO$`WEO Subject Code` <- NULL
 
-WEO[ISO == "UVK"]$ISO <- "XKX"
+WEO[ISOAlpha_3Code == "KOS"]$ISOAlpha_3Code <- "XKX"
 
-WEO <- merge(WEO, countries, by="ISO", all.y=T)
+WEO <- merge(WEO, countries, by="ISOAlpha_3Code", all.y=T)
 WEO[is.na(WEO$year)]$year <- 2018
 
 #Calculate new effective means for each year of growth data
@@ -161,11 +165,11 @@ WEO[is.na(WEO$year)]$year <- 2018
 
 WEO[is.na(WEO)] <- 0
 
-WEO[ISO=="CHN", (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.72)/100))*ifelse(x==0, NA, 1)))), .SDcols=(year.cols), by=ISO]
-WEO[ISO=="IND", (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.51)/100))*ifelse(x==0, NA, 1)))), .SDcols=(year.cols), by=ISO]
-WEO[!(ISO %in% c("CHN", "IND")), (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.87)/100))*ifelse(x==0, NA, 1)))), .SDcols=(year.cols), by=ISO]
+WEO[ISOAlpha_3Code=="CHN", (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.72)/100))*ifelse(x==0, NA, 1)))), .SDcols=(year.cols), by=ISOAlpha_3Code]
+WEO[ISOAlpha_3Code=="IND", (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.51)/100))*ifelse(x==0, NA, 1)))), .SDcols=(year.cols), by=ISOAlpha_3Code]
+WEO[!(ISOAlpha_3Code %in% c("CHN", "IND")), (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.87)/100))*ifelse(x==0, NA, 1)))), .SDcols=(year.cols), by=ISOAlpha_3Code]
 
-WEO[, (year.cols) := .SD/(approx(x=names(.SD), y=.SD[1], xout=year)$y), .SDcols=(year.cols), by=.(ISO, type)]
+WEO[, (year.cols) := .SD/(approx(x=names(.SD), y=.SD[1], xout=year)$y), .SDcols=(year.cols), by=.(ISOAlpha_3Code)]
 
 WEO[, (year.cols) := mean*.SD, .SDcols=(year.cols)]
 
@@ -177,7 +181,7 @@ names(pov.lines)[names(pov.lines) == "variable"] <- "line"
 #proj.years <- seq(min(WEO$year), max(as.numeric(names(WEO)), na.rm=T))
 #pov.lines <- c(1.9, 3.2, 5.5)
 
-WEO.melt <- melt(WEO, id.vars=c("ISO", "CountryName", "year", "mean", "ppp", "type", "A", "B", "C"))
+WEO.melt <- melt(WEO, id.vars=c("ISOAlpha_3Code", "CountryName", "year", "mean", "ppp", "type", "A", "B", "C"))
 WEO.melt$variable <- as.numeric(levels(WEO.melt$variable)[WEO.melt$variable])
 WEO.melt <- merge(WEO.melt, pov.lines, by.x="variable", by.y="year", allow.cartesian = T)
 
@@ -207,14 +211,14 @@ Betahc <- rbindlist(data.list)
 countries_Beta <- cbind(countries_Beta,Betahc)
 
 #Output raw solutions; check GQ results against Beta and select nearest root
-hc <- merge(countries_GQ[,c("ISO", "CountryName", "variable", "PL", "GQP1", "GQP2")], countries_Beta[,c("ISO", "CountryName", "PL", "variable", "BetaP1")], by=c("ISO", "CountryName", "variable", "PL"))
+hc <- merge(countries_GQ[,c("ISOAlpha_3Code", "CountryName", "variable", "PL", "GQP1", "GQP2")], countries_Beta[,c("ISOAlpha_3Code", "CountryName", "PL", "variable", "BetaP1")], by=c("ISOAlpha_3Code", "CountryName", "variable", "PL"))
 hc[is.na(hc)] <- -1
 
-hc <- hc[, .(Beta = BetaP1, GQ = c(GQP1, GQP2)[which.min(c(abs(GQP1-BetaP1), abs(GQP2-BetaP1)))]), by=.(ISO, CountryName, variable, PL)]
+hc <- hc[, .(Beta = BetaP1, GQ = c(GQP1, GQP2)[which.min(c(abs(GQP1-BetaP1), abs(GQP2-BetaP1)))]), by=.(ISOAlpha_3Code, CountryName, variable, PL)]
 
 hc[(hc)==-1] <- NA
 
-hc <- hc[, .(HeadCount = mean(c(GQ, Beta), na.rm=T), CoverageType="N"), by=.(ISO, CountryName, variable, PL)]
+hc <- hc[, .(HeadCount = mean(c(GQ, Beta), na.rm=T), CoverageType="N"), by=.(ISOAlpha_3Code, CountryName, variable, PL)]
 names(hc) <- c("CountryCode", "CountryName", "ProjYear", "PovertyLine", "HeadCount", "CoverageType")
 
 fwrite(hc, "project_data/modelled_countries.csv")

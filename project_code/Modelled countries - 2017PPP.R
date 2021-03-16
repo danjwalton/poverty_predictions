@@ -154,25 +154,29 @@ khm <- data.table(A= c(0.683555591,0.580351138),
 )
 
 countries <- rbind(afg, eri, lby, gnq, som, nru)
-merge(countries, ppps, by.x="ISO", by.y="iso3c")
+countries <- merge(countries, ppps, by.x="ISO", by.y="iso3c")
 
 #GDP per capita growth
-WEOraw <- fread("http://www.imf.org/external/pubs/ft/weo/2020/01/weodata/WEOApr2020all.xls", na.strings="n/a")
-WEO <- WEOraw[`WEO Subject Code` %in% c("NGDPRPPPPCPCH", "NGDPRPPPPC", "NGDP_RPCH")]
+tmp <- tempfile(fileext = ".xlsx")
+download.file("https://www.imf.org/external/pubs/ft/weo/data/WEOhistorical.xlsx", tmp, mode = "wb")
+WEOraw <- as.data.table(read_excel(tmp, sheet = "ngdp_rpch"))
+
+WEO <- WEOraw
+WEO <- WEO[, .(latest = apply(.SD, 1, function(x) unlist(x)[x != "."][ifelse(length(unlist(x)[x != "."]) == 0, 1, length(unlist(x)[x != "."]))][[1]])), .SDcols = names(WEO)[-c(1:4)], by = .(country, ISOAlpha_3Code, year)]
+
+WEO <- dcast(WEO, country + ISOAlpha_3Code ~ year, value.var = "latest")
+
 year.cols <- as.character(seq(min(countries$year), max(as.numeric(names(WEO)), na.rm=T)))
-WEO[, (year.cols) := lapply(.SD, function(x) gsub(",", "", x)), .SDcols=(year.cols)]
 
-WEO <- WEO[, lapply(.SD, as.numeric), .SDcols=(year.cols), by=.(ISO, `WEO Subject Code`)]
-WEO[`WEO Subject Code` == "NGDPRPPPPC", (year.cols) := cbind(0,as.data.table(t(apply(.SD, 1, function(x) 100*(diff(x)/shift(x,0)))))), .SDcols=(year.cols), by=ISO]
+WEO <- WEO[, lapply(.SD, as.numeric), .SDcols=(year.cols), by=.(ISOAlpha_3Code)]
 
-WEO <- WEO[, lapply(.SD, function(x) x[!is.na(x)][1]), .SDcols=(year.cols), by=ISO]
+WEO <- WEO[, lapply(.SD, function(x) x[!is.na(x)][1]), .SDcols=(year.cols), by=ISOAlpha_3Code]
 
 WEO[WEO=="--"] <- 0
-WEO$`WEO Subject Code` <- NULL
 
-WEO[ISO == "UVK"]$ISO <- "XKX"
+WEO[ISOAlpha_3Code == "KOS"]$ISOAlpha_3Code <- "XKX"
 
-WEO <- merge(WEO, countries, by="ISO", all.y=T)
+WEO <- merge(WEO, countries, by="ISOAlpha_3Code", all.y=T)
 WEO[is.na(WEO$year)]$year <- 2018
 
 #Calculate new effective means for each year of growth data
@@ -180,11 +184,11 @@ WEO[is.na(WEO$year)]$year <- 2018
 
 WEO[is.na(WEO)] <- 0
 
-WEO[ISO=="CHN", (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.72)/100))*ifelse(x==0, NA, 1)))), .SDcols=(year.cols), by=ISO]
-WEO[ISO=="IND", (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.51)/100))*ifelse(x==0, NA, 1)))), .SDcols=(year.cols), by=ISO]
-WEO[!(ISO %in% c("CHN", "IND")), (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.87)/100))*ifelse(x==0, NA, 1)))), .SDcols=(year.cols), by=ISO]
+WEO[ISOAlpha_3Code=="CHN", (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.72)/100))*ifelse(x==0, NA, 1)))), .SDcols=(year.cols), by=ISOAlpha_3Code]
+WEO[ISOAlpha_3Code=="IND", (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.51)/100))*ifelse(x==0, NA, 1)))), .SDcols=(year.cols), by=ISOAlpha_3Code]
+WEO[!(ISOAlpha_3Code %in% c("CHN", "IND")), (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.87)/100))*ifelse(x==0, NA, 1)))), .SDcols=(year.cols), by=ISOAlpha_3Code]
 
-WEO[, (year.cols) := .SD/(approx(x=names(.SD), y=.SD[1], xout=year)$y), .SDcols=(year.cols), by=.(ISO, type)]
+WEO[, (year.cols) := .SD/(approx(x=names(.SD), y=.SD[1], xout=year)$y), .SDcols=(year.cols), by=.(ISOAlpha_3Code)]
 
 WEO[, (year.cols) := mean*.SD, .SDcols=(year.cols)]
 
@@ -236,4 +240,4 @@ hc[(hc)==-1] <- NA
 hc <- hc[, .(HeadCount = mean(c(GQ, Beta), na.rm=T), CoverageType="N"), by=.(ISO, CountryName, variable, PL)]
 names(hc) <- c("CountryCode", "CountryName", "ProjYear", "PovertyLine", "HeadCount", "CoverageType")
 
-fwrite(hc, "project_data/modelled_countries.csv")
+fwrite(hc, "project_data/modelled_countries_2017PPP.csv")
