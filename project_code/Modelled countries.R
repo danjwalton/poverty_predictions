@@ -102,27 +102,27 @@ gnq <- data.table(A= c(0.770509436, 0.799965732),
                   type=c("GQ","Beta")
 )
 
-som <- data.table(A= c(0.88737242, 0.666110634),
-                  B= c(-1.254176897, 0.95205282),
-                  C= c(0.196100839, 0.562072863),
-                  ISOAlpha_3Code= "SOM",
-                  CountryName = "Somalia",
-                  year= 2017,
-                  mean= 421.8353938/365.2424,
-                  ppp= 0.674879848994,
-                  type=c("GQ","Beta")
-)
-
-nru <- data.table(A= c(0.984898208, 0.88028882),
-                  B= c(-1.794465503, 0.998651171),
-                  C= c(-0.439162335, 0.446140553),
-                  ISOAlpha_3Code= "NRU",
-                  CountryName = "Nauru",
-                  year= 2012.5,
-                  mean= 125.38/7,
-                  ppp= 1.20879771681625,
-                  type=c("GQ","Beta")
-)
+# som <- data.table(A= c(0.88737242, 0.666110634),
+#                   B= c(-1.254176897, 0.95205282),
+#                   C= c(0.196100839, 0.562072863),
+#                   ISOAlpha_3Code= "SOM",
+#                   CountryName = "Somalia",
+#                   year= 2017,
+#                   mean= 421.8353938/365.2424,
+#                   ppp= 0.674879848994,
+#                   type=c("GQ","Beta")
+# )
+# 
+# nru <- data.table(A= c(0.984898208, 0.88028882),
+#                   B= c(-1.794465503, 0.998651171),
+#                   C= c(-0.439162335, 0.446140553),
+#                   ISOAlpha_3Code= "NRU",
+#                   CountryName = "Nauru",
+#                   year= 2012.5,
+#                   mean= 125.38/7,
+#                   ppp= 1.20879771681625,
+#                   type=c("GQ","Beta")
+# )
 
 khm <- data.table(A= c(0.683555591,0.580351138),
                   B= c(-1.00090442, 0.952211708),
@@ -135,7 +135,7 @@ khm <- data.table(A= c(0.683555591,0.580351138),
                   type=c("GQ","Beta")
 )
 
-countries <- rbind(afg, eri, lby, gnq, som, nru)
+countries <- rbind(afg, eri, lby, gnq)
 
 #GDP per capita growth
 tmp <- tempfile(fileext = ".xlsx")
