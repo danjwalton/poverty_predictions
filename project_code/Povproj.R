@@ -67,6 +67,11 @@ povcal.tot.out <- function(country="all",year="all",PL=1.9,display="c"){
 #pov.lines <- c(seq(0.01, 25, 0.01), seq(26, 1000, 1))
 pov.lines <- melt(p20thresholds, id.vars = "year")
 pov.lines <- pov.lines[complete.cases(pov.lines)]
+
+extended.proj <- data.table(year = rep(2022:2025, each=3), variable = rep(c("LIC", "LMIC", "UMIC")), value = rep(c(1.9,3.2,5.5)))
+
+pov.lines <- rbind(pov.lines, extended.proj)
+
 names(pov.lines)[names(pov.lines) == "value"] <- "PovertyLines"
 
 povlist <- list()

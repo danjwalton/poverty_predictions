@@ -79,7 +79,7 @@ Betasolve <- function(a,b,c,PL,mu,init){
 afg <- data.table(A= c(0.935463769, 0.5760727),
                   B= c(-1.476794803, 0.856948964),
                   C= c(0.083512829, 0.49178234),
-                  ISO= "AFG",
+                  ISOAlpha_3Code= "AFG",
                   CountryName = "Afghanistan",
                   year= 2016.5,
                   mean= 21973.19478/365.2424,
@@ -90,7 +90,7 @@ afg <- data.table(A= c(0.935463769, 0.5760727),
 eri <- data.table(A= c(1.374421323, 1.261376489),
                   B= c(-1.165524803, 1.152561641),
                   C= c(-0.156452176, 0.800896719),
-                  ISO= "ERI",
+                  ISOAlpha_3Code= "ERI",
                   CountryName = "Eritrea",
                   year= 2011,
                   mean= 6758.835465/365.2424,
@@ -101,7 +101,7 @@ eri <- data.table(A= c(1.374421323, 1.261376489),
 lby <- data.table(A= c(1.002559972, 0.613658334),
                   B= c(-1.341360921, 0.934277217),
                   C= c(0.241518659, 0.607012527),
-                  ISO= "LBY",
+                  ISOAlpha_3Code= "LBY",
                   CountryName = "Libya",
                   year= 2008,
                   mean= 1918.570249/365.2424,
@@ -112,7 +112,7 @@ lby <- data.table(A= c(1.002559972, 0.613658334),
 gnq <- data.table(A= c(0.770509436, 0.799965732),
                   B= c(-0.622602953, 0.91474227),
                   C= c(0.046025736, 0.324983405),
-                  ISO= "GNQ",
+                  ISOAlpha_3Code= "GNQ",
                   CountryName = "Equatorial Guinea",
                   year= 2006,
                   mean= 485978.87/365.2424,
@@ -120,32 +120,32 @@ gnq <- data.table(A= c(0.770509436, 0.799965732),
                   type=c("GQ","Beta")
 )
 
-som <- data.table(A= c(0.88737242, 0.666110634),
-                  B= c(-1.254176897, 0.95205282),
-                  C= c(0.196100839, 0.562072863),
-                  ISO= "SOM",
-                  CountryName = "Somalia",
-                  year= 2017,
-                  mean= 421.8353938/365.2424,
-                  ppp= 0.674879848994,
-                  type=c("GQ","Beta")
-)
-
-nru <- data.table(A= c(0.984898208, 0.88028882),
-                  B= c(-1.794465503, 0.998651171),
-                  C= c(-0.439162335, 0.446140553),
-                  ISO= "NRU",
-                  CountryName = "Nauru",
-                  year= 2012.5,
-                  mean= 125.38/7,
-                  ppp= 1.20879771681625,
-                  type=c("GQ","Beta")
-)
+# som <- data.table(A= c(0.88737242, 0.666110634),
+#                   B= c(-1.254176897, 0.95205282),
+#                   C= c(0.196100839, 0.562072863),
+#                   ISOAlpha_3Code= "SOM",
+#                   CountryName = "Somalia",
+#                   year= 2017,
+#                   mean= 421.8353938/365.2424,
+#                   ppp= 0.674879848994,
+#                   type=c("GQ","Beta")
+# )
+# 
+# nru <- data.table(A= c(0.984898208, 0.88028882),
+#                   B= c(-1.794465503, 0.998651171),
+#                   C= c(-0.439162335, 0.446140553),
+#                   ISOAlpha_3Code= "NRU",
+#                   CountryName = "Nauru",
+#                   year= 2012.5,
+#                   mean= 125.38/7,
+#                   ppp= 1.20879771681625,
+#                   type=c("GQ","Beta")
+# )
 
 khm <- data.table(A= c(0.683555591,0.580351138),
                   B= c(-1.00090442, 0.952211708),
                   C= c(0.439753837, 0.507103243),
-                  ISO= "KHM",
+                  ISOAlpha_3Code= "KHM",
                   CountryName = "Cambodia",
                   year= 2011,
                   mean= ,
@@ -153,8 +153,8 @@ khm <- data.table(A= c(0.683555591,0.580351138),
                   type=c("GQ","Beta")
 )
 
-countries <- rbind(afg, eri, lby, gnq, som, nru)
-countries <- merge(countries, ppps, by.x="ISO", by.y="iso3c")
+countries <- rbind(afg, eri, lby, gnq)
+countries <- merge(countries, ppps, by.x="ISOAlpha_3Code", by.y="iso3c")
 
 #GDP per capita growth
 tmp <- tempfile(fileext = ".xlsx")
@@ -200,7 +200,7 @@ names(pov.lines)[names(pov.lines) == "variable"] <- "line"
 #proj.years <- seq(min(WEO$year), max(as.numeric(names(WEO)), na.rm=T))
 #pov.lines <- c(1.9, 3.2, 5.5)
 
-WEO.melt <- melt(WEO, id.vars=c("ISO", "CountryName", "year", "mean", "ppp", "type", "A", "B", "C"))
+WEO.melt <- melt(WEO, id.vars=c("ISOAlpha_3Code", "CountryName", "year", "mean", "ppp", "type", "A", "B", "C"))
 WEO.melt$variable <- as.numeric(levels(WEO.melt$variable)[WEO.melt$variable])
 WEO.melt <- merge(WEO.melt, pov.lines, by.x="variable", by.y="year", allow.cartesian = T)
 
@@ -230,14 +230,14 @@ Betahc <- rbindlist(data.list)
 countries_Beta <- cbind(countries_Beta,Betahc)
 
 #Output raw solutions; check GQ results against Beta and select nearest root
-hc <- merge(countries_GQ[,c("ISO", "CountryName", "variable", "PL", "GQP1", "GQP2")], countries_Beta[,c("ISO", "CountryName", "PL", "variable", "BetaP1")], by=c("ISO", "CountryName", "variable", "PL"))
+hc <- merge(countries_GQ[,c("ISOAlpha_3Code", "CountryName", "variable", "PL", "GQP1", "GQP2")], countries_Beta[,c("ISOAlpha_3Code", "CountryName", "PL", "variable", "BetaP1")], by=c("ISOAlpha_3Code", "CountryName", "variable", "PL"))
 hc[is.na(hc)] <- -1
 
-hc <- hc[, .(Beta = BetaP1, GQ = c(GQP1, GQP2)[which.min(c(abs(GQP1-BetaP1), abs(GQP2-BetaP1)))]), by=.(ISO, CountryName, variable, PL)]
+hc <- hc[, .(Beta = BetaP1, GQ = c(GQP1, GQP2)[which.min(c(abs(GQP1-BetaP1), abs(GQP2-BetaP1)))]), by=.(ISOAlpha_3Code, CountryName, variable, PL)]
 
 hc[(hc)==-1] <- NA
 
-hc <- hc[, .(HeadCount = mean(c(GQ, Beta), na.rm=T), CoverageType="N"), by=.(ISO, CountryName, variable, PL)]
+hc <- hc[, .(HeadCount = mean(c(GQ, Beta), na.rm=T), CoverageType="N"), by=.(ISOAlpha_3Code, CountryName, variable, PL)]
 names(hc) <- c("CountryCode", "CountryName", "ProjYear", "PovertyLine", "HeadCount", "CoverageType")
 
 fwrite(hc, "project_data/modelled_countries_2017PPP.csv")
