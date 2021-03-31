@@ -124,16 +124,16 @@ gnq <- data.table(A= c(0.770509436, 0.799965732),
 #                   type=c("GQ","Beta")
 # )
 
-khm <- data.table(A= c(0.683555591,0.580351138),
-                  B= c(-1.00090442, 0.952211708),
-                  C= c(0.439753837, 0.507103243),
-                  ISOAlpha_3Code= "KHM",
-                  CountryName = "Cambodia",
-                  year= 2011,
-                  mean= ,
-                  ppp= ,
-                  type=c("GQ","Beta")
-)
+# khm <- data.table(A= c(0.683555591,0.580351138),
+#                   B= c(-1.00090442, 0.952211708),
+#                   C= c(0.439753837, 0.507103243),
+#                   ISOAlpha_3Code= "KHM",
+#                   CountryName = "Cambodia",
+#                   year= 2011,
+#                   mean= ,
+#                   ppp= ,
+#                   type=c("GQ","Beta")
+# )
 
 countries <- rbind(afg, eri, lby, gnq)
 

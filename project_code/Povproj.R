@@ -271,11 +271,13 @@ names(globalprojpov.melt) <- c("CountryCode","DisplayName","region","Level","Pro
 
 projpov.melt <- rbind(projpov.melt,globalprojpov.melt)
 
-povcalyears <- c(1981, 1984, 1987, 1990, 1993, 1996, 1999, 2002, 2005, 2008, 2010, 2011, 2012, 2013, 2015, 2018, 2019, 2020, 2021)
+povcalyears <- c(1981:2025)
 
 projpov.melt <- projpov.melt[ProjYear %in% povcalyears]
 
-fwrite(projpov.melt,"output/globalproj_long_Apr20.csv")
+name <- paste0("output/globalproj_long_", format(as.Date(Sys.Date()), "%b%y"), ".csv")
+
+fwrite(projpov.melt,name)
 
 projpov.melt$title <- "p20"
 projpov.melt[PovertyLine > 10]$title <- "p80"

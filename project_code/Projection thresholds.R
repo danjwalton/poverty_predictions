@@ -1,6 +1,7 @@
+required.packages <- c("WDI","data.table", "readxl")
+lapply(required.packages, require, character.only=T)
+
 projections <- function(PLs=c(1.9), Year="all"){
-  required.packages <- c("WDI","data.table", "readxl")
-  lapply(required.packages, require, character.only=T)
   
   setwd("G:/My Drive/Work/GitHub/poverty_predictions/")
   
@@ -48,8 +49,6 @@ projections <- function(PLs=c(1.9), Year="all"){
   countries <- countries[CoverageType %in% c("N", "A")]
   
   #GDP per capita growth
-  tmp <- tempfile(fileext = ".xlsx")
-  download.file("https://www.imf.org/external/pubs/ft/weo/data/WEOhistorical.xlsx", tmp, mode = "wb")
   WEOraw <- as.data.table(read_excel(tmp, sheet = "ngdp_rpch"))
   
   WEO <- WEOraw
@@ -82,12 +81,12 @@ projections <- function(PLs=c(1.9), Year="all"){
   projpov.list <- list()
   for(i in 1:length(proj.years)){
     proj.year <- as.character(proj.years[i])
-    message(paste("Year:",proj.year,"; Poverty Line:",round(pl,2)))
     year.data <- list()
     for(j in 1:length(WEO.split)){
       pl.data <- list()
       for(k in 1:length(pov.lines)){
         pl <- pov.lines[k]
+        message(paste("Year:",proj.year,"; Poverty Line:",round(pl,2)))
         pl.data[[k]] <- povcal.ind.out(RefYears = T, countries = WEO.split[[j]]$ISOAlpha_3Code, years = unique(WEO.split[[j]]$RequestYear), PLs = pl, PPPs = unlist(WEO.split[[j]][,proj.year, with=F]))
       }
       year.data[[j]] <- rbindlist(pl.data)
@@ -210,10 +209,13 @@ projections <- function(PLs=c(1.9), Year="all"){
   if(Year == "all"){return(projpov.melt)}else{return(projpov.melt[ProjYear==Year])}
 }
 
-find.threshold <-function(threshold, year = seq(2018,2021), lower = 0.01, upper = 25, tol = 0.001) {
+tmp <- tempfile(fileext = ".xlsx")
+download.file("https://www.imf.org/external/pubs/ft/weo/data/WEOhistorical.xlsx", tmp, mode = "wb")
+
+find.threshold <-function(threshold, year = seq(2018,2025), lower = 0.01, upper = 25, tol = 0.001) {
   pvalue <- paste0("P", as.character(threshold*100))
   p <- rbindlist(lapply(year, function(setyear){data.table(requestYear = setyear, PL = optimise(function(x){abs(projections(x, setyear)[CountryCode == "WLD" & variable == "HeadCount"]$value - threshold)}, lower = lower, upper = upper, tol = tol)$minimum)}))
   setNames(p, c("year", pvalue))
 }
 
-out <- find.threshold(0.2, seq(2018,2024), lower=2.7, upper=3.2, tol=0.01)
+out <- find.threshold(0.2, seq(2018,2025), lower=2.7, upper=3.5, tol=0.01)
