@@ -1,9 +1,20 @@
 required.packages <- c("WDI","data.table", "readxl")
 lapply(required.packages, require, character.only=T)
 
+setwd("G:/My Drive/Work/GitHub/poverty_predictions/")
+
+tmp <- tempfile(fileext = ".xlsx")
+download.file("https://www.imf.org/external/pubs/ft/weo/data/WEOhistorical.xlsx", tmp, mode = "wb")
+
+povcal.tot.out <- function(country="all",year="all",PL=1.9,display="c"){
+  param <- paste0("RefYears=",year,"&PovertyLine=",PL,"&Countries=",country,"&display=",display)
+  url <- paste0("http://iresearch.worldbank.org/PovcalNet/PovcalNetAPI.ashx?",param)
+  return(read.csv(url,header=T))
+}
+
+pov_raw <- as.data.table(povcal.tot.out())
+
 projections <- function(PLs=c(1.9), Year="all"){
-  
-  setwd("G:/My Drive/Work/GitHub/poverty_predictions/")
   
   pov.lines <- PLs
   
@@ -36,14 +47,7 @@ projections <- function(PLs=c(1.9), Year="all"){
     return(read.csv(url,header=T))
   }
   
-  povcal.tot.out <- function(country="all",year="all",PL=1.9,display="c"){
-    param <- paste0("RefYears=",year,"&PovertyLine=",PL,"&Countries=",country,"&display=",display)
-    url <- paste0("http://iresearch.worldbank.org/PovcalNet/PovcalNetAPI.ashx?",param)
-    return(read.csv(url,header=T))
-  }
-  
-  pov <- as.data.table(povcal.tot.out())
-  pov <- pov[pov[!is.na(HeadCount), .I[which.max(RequestYear)], by=.(CountryCode, CoverageType)]$V1]
+  pov <- pov_raw[pov_raw[!is.na(HeadCount), .I[which.max(RequestYear)], by=.(CountryCode, CoverageType)]$V1]
   
   countries <- pov[, c("CountryCode", "CoverageType", "RequestYear", "PPP")]
   countries <- countries[CoverageType %in% c("N", "A")]
@@ -74,7 +78,11 @@ projections <- function(PLs=c(1.9), Year="all"){
   WEO[!(ISOAlpha_3Code %in% c("CHN", "IND")), (year.cols) := as.data.table(t(apply(.SD, 1, function(x) cumprod(1+((x*0.87)/100))))), .SDcols=(year.cols), by=ISOAlpha_3Code]
   WEO[, (year.cols) := PPP/.SD, .SDcols=(year.cols)]
   
-  proj.years <- seq(max(WEO$RequestYear), max(as.numeric(names(WEO)), na.rm=T))
+  if(Year == "all"){
+    proj.years <- seq(max(WEO$RequestYear), max(as.numeric(names(WEO)), na.rm=T))
+  } else {
+    proj.years <- Year
+  }
   
   WEO.split <- split(WEO, seq(1:3))
   
@@ -86,7 +94,7 @@ projections <- function(PLs=c(1.9), Year="all"){
       pl.data <- list()
       for(k in 1:length(pov.lines)){
         pl <- pov.lines[k]
-        message(paste("Year:",proj.year,"; Poverty Line:",round(pl,2)))
+        if(j == 1) message(paste("Trying... Year:",proj.year,"; Poverty Line:",round(pl,2)))
         pl.data[[k]] <- povcal.ind.out(RefYears = T, countries = WEO.split[[j]]$ISOAlpha_3Code, years = unique(WEO.split[[j]]$RequestYear), PLs = pl, PPPs = unlist(WEO.split[[j]][,proj.year, with=F]))
       }
       year.data[[j]] <- rbindlist(pl.data)
@@ -152,9 +160,10 @@ projections <- function(PLs=c(1.9), Year="all"){
     wup.all[CountryName == "United States Virgin Islands"]$CountryName <- "Virgin Islands, US"
   }
   
-  wup.wb <- merge(wup.all, wb_un.regions)
-  wup.wb <- dcast(wup.wb[CoverageType == "N"], region ~ ., value.var = as.character(proj.years), fun.aggregate = sum)
-  wup.wb <- melt(wup.wb, id.vars = "region")
+  wup.wb <- merge(wup.all, wb_un.regions[,c("CountryName", "region")])
+  wup.wb <- melt(wup.wb[CoverageType == "N"], id.vars = c("CountryName", "region", "CoverageType"))
+  
+  wup.wb <- wup.wb[, .(ReqYearPopulation = sum(value)), by = .(region, variable)]
   names(wup.wb) <- c("RegionCode", "ProjYear", "ReqYearPopulation")
   wup.wb$ReqYearPopulation <- wup.wb$ReqYearPopulation*1000
   
@@ -163,9 +172,9 @@ projections <- function(PLs=c(1.9), Year="all"){
   wup.all$ReqYearPopulation <- wup.all$ReqYearPopulation*1000
   
   projpov[CoverageType == "A"]$CoverageType <- "N"
-  projpov[CountryName=="Argentina"]$CoverageType <- "N"
+  #projpov[CountryName=="Argentina"]$CoverageType <- "N"
   
-  projpov <- merge(projpov, wup.all, by=c("CountryName", "CoverageType", "ProjYear"), all.x=T)
+  projpov <- merge(projpov, wup.all, by=c("CountryName", "CoverageType", "ProjYear")) #, all.x=T)
   
   projpov$Level <- "National"
   projpov[CoverageType == "U" | CoverageType == "R"]$Level <- "Subnational"
@@ -209,13 +218,14 @@ projections <- function(PLs=c(1.9), Year="all"){
   if(Year == "all"){return(projpov.melt)}else{return(projpov.melt[ProjYear==Year])}
 }
 
-tmp <- tempfile(fileext = ".xlsx")
-download.file("https://www.imf.org/external/pubs/ft/weo/data/WEOhistorical.xlsx", tmp, mode = "wb")
-
 find.threshold <-function(threshold, year = seq(2018,2025), lower = 0.01, upper = 25, tol = 0.001) {
   pvalue <- paste0("P", as.character(threshold*100))
   p <- rbindlist(lapply(year, function(setyear){data.table(requestYear = setyear, PL = optimise(function(x){abs(projections(x, setyear)[CountryCode == "WLD" & variable == "HeadCount"]$value - threshold)}, lower = lower, upper = upper, tol = tol)$minimum)}))
   setNames(p, c("year", pvalue))
 }
 
-out <- find.threshold(0.2, seq(2018,2025), lower=2.7, upper=3.5, tol=0.01)
+out_p20 <- find.threshold(0.2, seq(2019,2026), lower=2.5, upper=5, tol=0.05)
+out_p80 <- find.threshold(0.8, seq(2019,2026), lower=20, upper=30, tol=0.05)
+
+out <- merge(out_p20, out_p80)
+fwrite(out, "output/Projected_p20_p80_thresholds.csv")
