@@ -252,8 +252,13 @@ find.threshold <-function(threshold, year = seq(2018,2025), lower = 0.01, upper 
   setNames(p, c("year", pvalue))
 }
 
-out_p20 <- find.threshold(0.2, seq(1981,2019), lower=0.5, upper=4, tol=0.05)
-out_p80 <- find.threshold(0.8, seq(1981,2019), lower=10, upper=30, tol=0.05)
+p20_list <- list()
 
-out <- merge(out_p20, out_p80)
-fwrite(out, "output/Projected_p20_p80_thresholds.csv")
+for(i in 1:length(1981:2026)){
+  temp <- find.threshold(0.2, (1981:2026)[i], lower=0.5, upper=4, tol=0.05)
+  p20_list[[i]] <- temp
+}
+
+out_p20 <- rbindlist(p20_list)
+
+fwrite(out_p20, "output/Projected_p20_thresholds.csv")
