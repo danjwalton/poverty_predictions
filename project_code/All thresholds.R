@@ -119,11 +119,11 @@ projections <- function(PLs=c(1.9), Year="all"){
     projpov <- rbindlist(projpov.list)
     projpov <- projpov[projpov[!is.na(HeadCount), .I[which.max(RequestYear)], by=.(CountryCode, CoverageType, PovertyLine, ProjYear)]$V1]
     
-    projpov <- rbind(projpov[!(CountryName %in% pov$CountryName & ProjYear %in% pov$RequestYear)], pov, fill = T)
+    projpov <- rbind(projpov[!(CountryName %in% pov[RequestYear %in% proj.years]$CountryName)], pov, fill = T)
     projpov[is.na(ProjYear), ProjYear := as.character(RequestYear)]
   } else {
     
-    message(paste("Trying... Year(s):", Year ,"; Poverty Line(s):",round(pov.lines,2)))
+    message(paste("Trying... Year:", Year ,"; Poverty Line:",round(pov.lines,2)))
     projpov <- pov[RequestYear %in% all.years]
     projpov[, ProjYear := as.character(RequestYear)]
     
