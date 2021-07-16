@@ -3,7 +3,7 @@ lapply(required.packages, require, character.only=T)
 
 setwd("G:/My Drive/Work/GitHub/poverty_predictions/")
 
-p20thresholds <- fread("project_data/Poverty thresholds.csv")
+p20thresholds <- fread("output/Projected_p20_thresholds.csv")
 wb_un.regions <- fread("project_data/WB_UN regions.csv")
 names(wb_un.regions)[names(wb_un.regions) == "Povcal_Region"] <- "region"
 
@@ -64,11 +64,12 @@ povcal.tot.out <- function(country="all",year="all",PL=1.9,display="c"){
   return(read.csv(url,header=T))
 }
 
+pov.lines <- c()
 #pov.lines <- c(seq(0.01, 25, 0.01), seq(26, 1000, 1))
-pov.lines <- melt(p20thresholds, id.vars = "year")
-pov.lines <- pov.lines[complete.cases(pov.lines)]
+#pov.lines <- melt(p20thresholds, id.vars = "year")
+#pov.lines <- pov.lines[complete.cases(pov.lines)]
 
-extended.proj <- data.table(year = rep(2022:2025, each=3), variable = rep(c("LIC", "LMIC", "UMIC")), value = rep(c(1.9,3.2,5.5)))
+extended.proj <- data.table(year = rep(1981:2026, each=3), variable = rep(c("LIC", "LMIC", "UMIC")), value = rep(c(1.9,3.2,5.5)))
 
 pov.lines <- rbind(pov.lines, extended.proj)
 pov.lines <- unique(pov.lines)
@@ -83,7 +84,7 @@ pov <- rbindlist(povlist)
 
 pov <- pov[!is.na(HeadCount)]
 
-pov.rec <- pov[pov[PovertyLine == 1.9, .I[which.max(RequestYear)], by=.(CountryCode, CoverageType)]$V1]
+pov.rec <- pov[pov[, .I[which.max(RequestYear)], by=.(CountryCode, CoverageType)]$V1]
 
 countries <- pov.rec[, c("CountryCode", "CoverageType", "RequestYear", "PPP")]
 
@@ -181,7 +182,7 @@ names(wup.all)[names(wup.all) == "Region, subregion, country or area"] <- "Count
   wup.all$CountryName[which(wup.all$CountryName=="Bolivia (Plurinational State of)")]="Bolivia"
   wup.all$CountryName[which(wup.all$CountryName=="Democratic Republic of the Congo")]="Congo, Democratic Republic of"
   wup.all$CountryName[which(wup.all$CountryName=="Congo")]="Congo, Republic of"
-  wup.all$CountryName[which(wup.all$CountryName=="Côte d'Ivoire")]="Cote d'Ivoire"
+  wup.all$CountryName[which(wup.all$CountryName=="CÃ´te d'Ivoire")]="Cote d'Ivoire"
   wup.all$CountryName[which(wup.all$CountryName=="Czechia")]="Czech Republic"
   wup.all$CountryName[which(wup.all$CountryName=="Egypt")]="Egypt, Arab Republic of"
   wup.all$CountryName[which(wup.all$CountryName=="Gambia")]="Gambia, The"
@@ -202,7 +203,7 @@ names(wup.all)[names(wup.all) == "Region, subregion, country or area"] <- "Count
   wup.all$CountryName[which(wup.all$CountryName=="State of Palestine")]="West Bank and Gaza"
   wup.all$CountryName[which(wup.all$CountryName=="China, Taiwan Province of China")]="Taiwan, China"
   wup.all[CountryName == "Bahamas"]$CountryName <- "Bahamas, The"
-  wup.all[CountryName == "Curaçao"]$CountryName <- "Curacao"
+  wup.all[CountryName == "CuraÃ§ao"]$CountryName <- "Curacao"
   wup.all[CountryName == "Faeroe Islands"]$CountryName <- "Faroe Islands"
   wup.all[CountryName == "China, Hong Kong SAR"]$CountryName <- "Hong Kong SAR, China"
   wup.all[CountryName == "Dem. People's Republic of Korea"]$CountryName <- "Korea, Democratic People's Republic of"
@@ -270,10 +271,10 @@ names(globalprojpov.melt) <- c("CountryCode","DisplayName","region","Level","Pro
 
 projpov.melt <- rbind(projpov.melt,globalprojpov.melt)
 
-povcalyears <- c(1981:2025)
+povcalyears <- c(1981:2026)
 
 projpov.melt <- projpov.melt[ProjYear %in% povcalyears]
 
-name <- paste0("output/globalproj_long_", format(as.Date(Sys.Date()), "%b%y"), ".csv")
+name <- paste0("output/p20_globalproj_long_", format(as.Date(Sys.Date()), "%b%y"), ".csv")
 
 fwrite(projpov.melt,name)
